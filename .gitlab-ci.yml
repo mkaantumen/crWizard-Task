@@ -1,0 +1,85 @@
+stages:
+  - dependency
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+install_dependencies:
+  stage: dependency
+  script:
+    - npm ci
+  only:
+    - staging
+  tags:
+    - staging
+
+build_staging:
+  stage: build
+  variables:
+    CI: "false"
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - build/
+  only:
+    - staging
+  tags:
+    - staging
+
+
+build_production:
+  stage: build
+  when: manual
+  variables:
+    CI: "false"
+  script:
+    - rm -f .env
+    - echo "REACT_APP_API_KEY=${REACT_APP_API_KEY}" >> .env
+    - echo "REACT_APP_ADMIN_KEY=${REACT_APP_ADMIN_KEY}" >> .env
+    - echo "REACT_APP_loginAPI=${REACT_APP_loginAPI}" >> .env
+    - echo "REACT_APP_registerAPI=${REACT_APP_registerAPI}" >> .env
+    - echo "REACT_APP_recordingsAPI=${REACT_APP_recordingsAPI}" >> .env
+    - echo "REACT_APP_searchAPI=${REACT_APP_searchAPI}" >> .env
+    - echo "REACT_APP_userServersAPI=${REACT_APP_userServersAPI}" >> .env
+    - echo "REACT_APP_createUserGroupAPI=${REACT_APP_createUserGroupAPI}" >> .env
+    - echo "REACT_APP_createRecordingServerAPI=${REACT_APP_createRecordingServerAPI}" >> .env
+    - echo "REACT_APP_generalOpsAPI=${REACT_APP_generalOpsAPI}" >> .env
+    - echo "REACT_APP_assignUserGroupAPI=${REACT_APP_assignUserGroupAPI}" >> .env
+    - echo "REACT_APP_getFileAPI=${REACT_APP_getFileAPI}" >> .env
+    - echo "REACT_APP_changePasswordAPI=${REACT_APP_changePasswordAPI}" >> .env
+    - npm run build
+  artifacts:
+    paths:
+      - build/
+  only:
+    - staging
+  tags:
+    - staging
+
+deploy_staging:
+  stage: deploy
+  needs: [ build_staging ]
+  script:
+    - ssh -p22 185.11.248.99 "mkdir -p jitsi/web/{temp,live} && rm -rf jitsi/web/old 2>/dev/null"
+    - scp -P22 -r build/* 185.11.248.99:jitsi/web/temp
+    - ssh -p22 185.11.248.99 "mv jitsi/web/live jitsi/web/old && mv jitsi/web/temp jitsi/web/live"
+  only:
+    - staging
+  tags:
+    - staging
+
+deploy_production:
+  stage: deploy
+  needs: [ build_production ]
+  script:
+    - ssh -p22 185.11.248.155 "mkdir -p jitsi/web/{temp,live} && rm -rf jitsi/web/old 2>/dev/null"
+    - scp -P22 -r build/* 185.11.248.155:jitsi/web/temp
+    - ssh -p22 185.11.248.155 "mv jitsi/web/live jitsi/web/old && mv jitsi/web/temp jitsi/web/live"
+  only:
+    - staging
+  tags:
+    - staging
